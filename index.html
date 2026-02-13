@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Coaching Manager Pro</title>
+    <title>Smart Coaching Manager Pro - Phone Support</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -24,12 +24,13 @@
         .btn-primary { background: var(--accent); color: #020617; }
         .btn-sec { background: #334155; color: white; }
         .btn-danger { background: var(--absent); color: white; }
+        .btn-call { background: #fbbf24; color: #000; padding: 5px 10px; border-radius: 8px; text-decoration: none; font-size: 0.8rem; display: none; margin-top: 5px; }
 
         .st-row { 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 12px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border-radius: 15px;
         }
-        .att-btns { display: flex; gap: 8px; }
+        .att-btns { display: flex; gap: 8px; align-items: center; }
         .btn-p, .btn-a { width: 45px; height: 45px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; opacity: 0.2; font-size: 1.2rem; }
         .active-p { background: var(--present); opacity: 1; border-color: white; }
         .active-a { background: var(--absent); opacity: 1; border-color: white; }
@@ -41,10 +42,10 @@
             .no-print { display: none !important; }
             .overlay { display: block !important; position: static; color: black; background: white; }
             table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 12px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 10px; }
         }
-        table { width: 100%; border-collapse: collapse; color: white; margin-top: 10px; font-size: 14px; }
-        th, td { border: 1px solid #334155; padding: 10px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; color: white; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #334155; padding: 8px; text-align: center; }
         .csv-label { display: block; padding: 15px; background: #334155; border-radius: 12px; text-align: center; cursor: pointer; border: 2px dashed var(--accent); margin-bottom: 10px; }
     </style>
 </head>
@@ -74,8 +75,8 @@
         <div style="display:flex; gap:5px;"><input type="text" id="addBtc" placeholder="Batch (উদা: Morning)"><button class="btn btn-sec" style="width:70px" onclick="addNew('batches', 'addBtc')">যোগ</button></div>
     </div>
     <div class="card">
-        <h4>২. CSV ফাইল থেকে স্টুডেন্ট যোগ</h4>
-        <label for="csvFile" class="csv-label">📂 CSV ফাইল সিলেক্ট করুন<br><small>(Format: Name, Roll, Class, Batch)</small></label>
+        <h4>২. CSV ফাইল থেকে ইনপুট (৫ টি কলাম)</h4>
+        <label for="csvFile" class="csv-label">📂 CSV ফাইল সিলেক্ট করুন<br><small>(Format: Name, Roll, Class, Batch, Phone)</small></label>
         <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="handleCSV(event)">
         <p id="csvStatus" style="font-size: 0.8rem; text-align: center; color: var(--accent);"></p>
     </div>
@@ -103,7 +104,7 @@
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('coaching_db_v8')) || {
+    let db = JSON.parse(localStorage.getItem('coaching_db_v9')) || {
         classes: ['Class 9', 'Class 10'],
         batches: ['Batch A', 'Batch B'],
         students: [],
@@ -111,7 +112,7 @@
     };
     let curSession = {};
 
-    function sync() { localStorage.setItem('coaching_db_v8', JSON.stringify(db)); }
+    function sync() { localStorage.setItem('coaching_db_v9', JSON.stringify(db)); }
 
     function updateDropdowns() {
         const fill = (ids, items) => ids.forEach(id => {
@@ -127,7 +128,6 @@
         if(val) { db[key].push(val); sync(); document.getElementById(id).value = ''; updateDropdowns(); }
     }
 
-    // CSV Handling
     function handleCSV(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -136,18 +136,16 @@
             const rows = e.target.result.split('\n');
             let count = 0;
             rows.forEach((row, index) => {
-                if(index === 0 || !row.trim()) return; // Skip header and empty rows
-                const [name, roll, cls, btc] = row.split(',').map(item => item.trim());
+                if(index === 0 || !row.trim()) return;
+                const [name, roll, cls, btc, phone] = row.split(',').map(item => item.trim());
                 if(name && roll && cls && btc) {
-                    db.students.push({ id: Date.now() + Math.random(), name, roll, cls, btc });
-                    // Auto-add class/batch if they don't exist
+                    db.students.push({ id: Date.now() + Math.random(), name, roll, cls, btc, phone: phone || '' });
                     if(!db.classes.includes(cls)) db.classes.push(cls);
                     if(!db.batches.includes(btc)) db.batches.push(btc);
                     count++;
                 }
             });
-            sync();
-            updateDropdowns();
+            sync(); updateDropdowns();
             document.getElementById('csvStatus').innerText = `${count} জন স্টুডেন্ট যোগ হয়েছে!`;
             renderManager();
         };
@@ -163,7 +161,11 @@
         curSession = {};
         document.getElementById('stItems').innerHTML = list.map(s => `
             <div class="st-row">
-                <div><b>${s.name}</b><br><small>Roll: ${s.roll}</small></div>
+                <div>
+                    <b>${s.name}</b><br>
+                    <small>Roll: ${s.roll} | Mob: ${s.phone}</small>
+                    <a id="call-${s.id}" href="tel:${s.phone}" class="btn-call">📞 Call Family</a>
+                </div>
                 <div class="att-btns">
                     <button id="p-${s.id}" class="btn-p" onclick="mark('${s.id}','P')">✅</button>
                     <button id="a-${s.id}" class="btn-a" onclick="mark('${s.id}','A')">❌</button>
@@ -176,6 +178,13 @@
         curSession[id] = s;
         document.getElementById(`p-${id}`).className = 'btn-p' + (s==='P'?' active-p':'');
         document.getElementById(`a-${id}`).className = 'btn-a' + (s==='A'?' active-a':'');
+        // Show/Hide Call Button only if Absent
+        const callBtn = document.getElementById(`call-${id}`);
+        if(s === 'A' && callBtn.getAttribute('href') !== 'tel:') {
+            callBtn.style.display = 'inline-block';
+        } else {
+            callBtn.style.display = 'none';
+        }
     }
 
     function finalizeAttendance() {
@@ -189,11 +198,11 @@
         const batchSt = db.students.filter(s => s.cls === cls && s.btc === btc).sort((a,b) => a.roll - b.roll);
         const dates = [...new Set(filteredLogs.map(l => l.date))];
 
-        let h = `<h3>${cls} - ${btc} হাজিরা রিপোর্ট</h3><table><tr><th>রোল</th><th>নাম</th>`;
+        let h = `<h3>${cls} - ${btc} হাজিরা রিপোর্ট</h3><table><tr><th>রোল</th><th>নাম</th><th>মোবাইল</th>`;
         dates.forEach(d => h += `<th>${d.split('/')[0]}</th>`);
         h += `<th>মোট</th></tr>`;
         batchSt.forEach(s => {
-            let count = 0; h += `<tr><td>${s.roll}</td><td>${s.name}</td>`;
+            let count = 0; h += `<tr><td>${s.roll}</td><td>${s.name}</td><td>${s.phone}</td>`;
             dates.forEach(d => {
                 const stat = filteredLogs.find(l => l.date === d)?.data[s.id] || '-';
                 if(stat === 'P') count++; h += `<td>${stat}</td>`;
@@ -206,10 +215,10 @@
     function renderManager() {
         document.getElementById('stManagementList').innerHTML = db.students.map(s => `
             <div class="st-row" style="font-size:0.8rem">
-                <span><b>${s.roll}</b>. ${s.name} (${s.cls})</span>
+                <span><b>${s.roll}</b>. ${s.name} (${s.phone})</span>
                 <button class="btn-danger" style="padding:5px 10px; border-radius:8px; border:none; width:auto;" onclick="delSt(${s.id})">মুছুন</button>
             </div>
-        `).join('') || "কোন স্টুডেন্ট যোগ করা হয়নি।";
+        `).join('') || "স্টুডেন্ট নেই।";
     }
 
     function delSt(id) { if(confirm("মুছে ফেলবেন?")) { db.students = db.students.filter(s => s.id !== id); sync(); renderManager(); } }
