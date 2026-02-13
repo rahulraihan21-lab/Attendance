@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Coaching Manager Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020617; --card: #0f172a; --accent: #38bdf8;
+            --present: #10b981; --absent: #ef4444; --text: #f1f5f9;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Hind Siliguri', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 100px; }
+        .card { background: var(--card); padding: 15px; border-radius: 20px; margin-bottom: 15px; border: 1px solid #1e293b; }
+        h2, h3 { color: var(--accent); margin-bottom: 15px; text-align: center; }
+        
+        select, input, textarea { 
+            width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 12px; 
+            border: 1px solid #334155; background: #1e293b; color: white; outline: none;
+        }
+        .btn { padding: 12px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; transition: 0.3s; width: 100%; margin-top: 5px; }
+        .btn-primary { background: var(--accent); color: #020617; }
+        .btn-sec { background: #334155; color: white; }
+        .btn-danger { background: var(--absent); color: white; }
+
+        .st-row { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 12px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border-radius: 15px;
+        }
+        .att-btns { display: flex; gap: 8px; }
+        .btn-p, .btn-a { width: 45px; height: 45px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; opacity: 0.2; font-size: 1.2rem; }
+        .active-p { background: var(--present); opacity: 1; border-color: white; }
+        .active-a { background: var(--absent); opacity: 1; border-color: white; }
+
+        .nav { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 500px; display: flex; gap: 10px; z-index: 1000; }
+        .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 100; padding: 20px; display: none; overflow-y: auto; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .overlay { display: block !important; position: static; color: black; background: white; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 12px; }
+        }
+        table { width: 100%; border-collapse: collapse; color: white; margin-top: 10px; font-size: 14px; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="home">
+    <h2>🎯 Coaching Master Pro</h2>
+    <div class="card">
+        <div style="display:flex; gap:10px;">
+            <select id="runClass"></select>
+            <select id="runBatch"></select>
+        </div>
+        <button class="btn btn-primary" onclick="loadAttendanceList()">📋 হাজিরা শুরু করুন</button>
+    </div>
+    <div id="attListZone" style="display:none;">
+        <h3 id="attTitle"></h3>
+        <div id="stItems"></div>
+        <button class="btn btn-primary" style="background:var(--present); color:white; margin-top:15px;" onclick="finalizeAttendance()">✅ হাজিরা সেভ করুন</button>
+    </div>
+</div>
+
+<div id="setOverlay" class="overlay">
+    <h3>⚙️ সেটিংস ও স্টুডেন্ট ডাটা</h3>
+    <div class="card">
+        <h4>১. নতুন ক্লাস ও ব্যাচ যোগ</h4>
+        <div style="display:flex; gap:5px;"><input type="text" id="addCls" placeholder="Class (উদা: 10)"><button class="btn btn-sec" style="width:70px" onclick="addNew('classes', 'addCls')">যোগ</button></div>
+        <div style="display:flex; gap:5px;"><input type="text" id="addBtc" placeholder="Batch (উদা: Morning)"><button class="btn btn-sec" style="width:70px" onclick="addNew('batches', 'addBtc')">যোগ</button></div>
+    </div>
+    <div class="card">
+        <h4>২. বাল্ক স্টুডেন্ট ইনপুট</h4>
+        <select id="inCls"></select><select id="inBtc"></select>
+        <textarea id="bulkData" rows="4" placeholder="নামগুলো কমা (,) দিয়ে লিখুন। উদা: আকাশ, বাতাস, সাগর..."></textarea>
+        <button class="btn btn-primary" onclick="bulkAdd()">➕ একবারে যোগ করুন</button>
+    </div>
+    <div id="stManagementList"></div>
+    <button class="btn btn-sec" onclick="closeO('setOverlay')">ফিরে যান</button>
+</div>
+
+<div id="repOverlay" class="overlay">
+    <div class="no-print">
+        <h3>📊 রিপোর্ট জেনারেটর</h3>
+        <div class="card">
+            <select id="rCls"></select><select id="rBtc"></select>
+            <button class="btn btn-primary" onclick="createReport()">📈 মাসিক রিপোর্ট দেখুন</button>
+            <button class="btn btn-sec" onclick="window.print()">🖨️ প্রিন্ট / PDF সেভ</button>
+        </div>
+    </div>
+    <div id="printArea"></div>
+    <button class="btn btn-sec no-print" onclick="closeO('repOverlay')">বন্ধ করুন</button>
+</div>
+
+<div class="nav no-print">
+    <button class="btn btn-sec" onclick="openSettings()">⚙️ সেটিংস</button>
+    <button class="btn btn-primary" onclick="location.reload()">🔄 রিফ্রেশ</button>
+    <button class="btn btn-sec" onclick="openReports()">📊 রিপোর্ট</button>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('coaching_db_v7')) || {
+        classes: ['Class 9', 'Class 10'],
+        batches: ['Batch A', 'Batch B'],
+        students: [],
+        logs: []
+    };
+    let curSession = {};
+
+    function sync() { localStorage.setItem('coaching_db_v7', JSON.stringify(db)); }
+
+    function updateDropdowns() {
+        const fill = (ids, items) => ids.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerHTML = items.map(i => `<option value="${i}">${i}</option>`).join('');
+        });
+        fill(['runClass', 'inCls', 'rCls'], db.classes);
+        fill(['runBatch', 'inBtc', 'rBtc'], db.batches);
+    }
+
+    function addNew(key, id) {
+        const val = document.getElementById(id).value.trim();
+        if(val) { db[key].push(val); sync(); document.getElementById(id).value = ''; updateDropdowns(); }
+    }
+
+    function bulkAdd() {
+        const names = document.getElementById('bulkData').value.split(',');
+        const cls = document.getElementById('inCls').value;
+        const btc = document.getElementById('inBtc').value;
+        names.forEach(n => { if(n.trim()) db.students.push({ id: Date.now() + Math.random(), name: n.trim(), cls, btc }); });
+        sync(); document.getElementById('bulkData').value = ''; alert("স্টুডেন্ট যোগ হয়েছে!"); renderManager();
+    }
+
+    function loadAttendanceList() {
+        const cls = document.getElementById('runClass').value, btc = document.getElementById('runBatch').value;
+        const list = db.students.filter(s => s.cls === cls && s.btc === btc);
+        if(!list.length) return alert("স্টুডেন্ট নেই!");
+        document.getElementById('attTitle').innerText = `${cls} | ${btc}`;
+        document.getElementById('attListZone').style.display = 'block';
+        curSession = {};
+        document.getElementById('stItems').innerHTML = list.map(s => `
+            <div class="st-row">
+                <b>${s.name}</b>
+                <div class="att-btns">
+                    <button id="p-${s.id}" class="btn-p" onclick="mark('${s.id}','P')">✅</button>
+                    <button id="a-${s.id}" class="btn-a" onclick="mark('${s.id}','A')">❌</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function mark(id, s) {
+        curSession[id] = s;
+        document.getElementById(`p-${id}`).className = 'btn-p' + (s==='P'?' active-p':'');
+        document.getElementById(`a-${id}`).className = 'btn-a' + (s==='A'?' active-a':'');
+    }
+
+    function finalizeAttendance() {
+        db.logs.push({ date: new Date().toLocaleDateString('en-GB'), cls: document.getElementById('runClass').value, btc: document.getElementById('runBatch').value, data: curSession });
+        sync(); alert("আজকের হাজিরা সম্পন্ন!"); location.reload();
+    }
+
+    function createReport() {
+        const cls = document.getElementById('rCls').value, btc = document.getElementById('rBtc').value;
+        const filteredLogs = db.logs.filter(l => l.cls === cls && l.btc === btc);
+        const batchSt = db.students.filter(s => s.cls === cls && s.btc === btc);
+        const dates = [...new Set(filteredLogs.map(l => l.date))];
+
+        let h = `<h3>${cls} - ${btc} হাজিরা রিপোর্ট</h3><table><tr><th>নাম</th>`;
+        dates.forEach(d => h += `<th>${d.split('/')[0]}</th>`);
+        h += `<th>মোট</th></tr>`;
+        batchSt.forEach(s => {
+            let count = 0; h += `<tr><td>${s.name}</td>`;
+            dates.forEach(d => {
+                const stat = filteredLogs.find(l => l.date === d)?.data[s.id] || '-';
+                if(stat === 'P') count++; h += `<td>${stat}</td>`;
+            });
+            h += `<td>${count}</td></tr>`;
+        });
+        document.getElementById('printArea').innerHTML = h + `</table>`;
+    }
+
+    function renderManager() {
+        document.getElementById('stManagementList').innerHTML = db.students.map(s => `
+            <div class="st-row" style="font-size:0.8rem">
+                <span>${s.name} (${s.cls})</span>
+                <button class="btn-danger" style="padding:5px 10px; border-radius:8px; border:none; width:auto;" onclick="delSt(${s.id})">মুছুন</button>
+            </div>
+        `).join('') || "কোন স্টুডেন্ট যোগ করা হয়নি।";
+    }
+
+    function delSt(id) { if(confirm("মুছে ফেলবেন?")) { db.students = db.students.filter(s => s.id !== id); sync(); renderManager(); } }
+    function openSettings() { document.getElementById('setOverlay').style.display='block'; updateDropdowns(); renderManager(); }
+    function openReports() { document.getElementById('repOverlay').style.display='block'; updateDropdowns(); }
+    function closeO(id) { document.getElementById(id).style.display='none'; }
+    
+    // Initial Load
+    window.onload = updateDropdowns;
+</script>
+</body>
+</html>
