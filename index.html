@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Coaching Manager Pro - Phone Support</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Smart Coaching Manager Pro - Final</title>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -14,7 +13,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Hind Siliguri', sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 100px; }
         .card { background: var(--card); padding: 15px; border-radius: 20px; margin-bottom: 15px; border: 1px solid #1e293b; }
-        h2, h3 { color: var(--accent); margin-bottom: 15px; text-align: center; }
+        h2, h3, h4 { color: var(--accent); margin-bottom: 15px; text-align: center; }
+        h4 { text-align: left; font-size: 1rem; border-bottom: 1px solid #1e293b; padding-bottom: 5px; }
         
         select, input, textarea { 
             width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 12px; 
@@ -69,17 +69,34 @@
 
 <div id="setOverlay" class="overlay">
     <h3>⚙️ সেটিংস ও স্টুডেন্ট ডাটা</h3>
+    
     <div class="card">
         <h4>১. নতুন ক্লাস ও ব্যাচ যোগ</h4>
         <div style="display:flex; gap:5px;"><input type="text" id="addCls" placeholder="Class (উদা: 10)"><button class="btn btn-sec" style="width:70px" onclick="addNew('classes', 'addCls')">যোগ</button></div>
         <div style="display:flex; gap:5px;"><input type="text" id="addBtc" placeholder="Batch (উদা: Morning)"><button class="btn btn-sec" style="width:70px" onclick="addNew('batches', 'addBtc')">যোগ</button></div>
     </div>
+
     <div class="card">
-        <h4>২. CSV ফাইল থেকে ইনপুট (৫ টি কলাম)</h4>
+        <h4>২. ম্যানুয়ালি একজন স্টুডেন্ট যোগ করুন</h4>
+        <input type="text" id="manName" placeholder="নাম">
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="manRoll" placeholder="রোল">
+            <input type="text" id="manPhone" placeholder="ফোন নম্বর">
+        </div>
+        <div style="display:flex; gap:5px;">
+            <select id="manClassSelect"></select>
+            <select id="manBatchSelect"></select>
+        </div>
+        <button class="btn btn-primary" onclick="manualAdd()">➕ স্টুডেন্ট যোগ করুন</button>
+    </div>
+
+    <div class="card">
+        <h4>৩. CSV ফাইল থেকে ইনপুট</h4>
         <label for="csvFile" class="csv-label">📂 CSV ফাইল সিলেক্ট করুন<br><small>(Format: Name, Roll, Class, Batch, Phone)</small></label>
         <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="handleCSV(event)">
         <p id="csvStatus" style="font-size: 0.8rem; text-align: center; color: var(--accent);"></p>
     </div>
+
     <div id="stManagementList"></div>
     <button class="btn btn-sec" onclick="closeO('setOverlay')">ফিরে যান</button>
 </div>
@@ -104,7 +121,7 @@
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('coaching_db_v9')) || {
+    let db = JSON.parse(localStorage.getItem('coaching_db_v10')) || {
         classes: ['Class 9', 'Class 10'],
         batches: ['Batch A', 'Batch B'],
         students: [],
@@ -112,20 +129,40 @@
     };
     let curSession = {};
 
-    function sync() { localStorage.setItem('coaching_db_v9', JSON.stringify(db)); }
+    function sync() { localStorage.setItem('coaching_db_v10', JSON.stringify(db)); }
 
     function updateDropdowns() {
         const fill = (ids, items) => ids.forEach(id => {
             const el = document.getElementById(id);
             if(el) el.innerHTML = items.map(i => `<option value="${i}">${i}</option>`).join('');
         });
-        fill(['runClass', 'inCls', 'rCls'], db.classes);
-        fill(['runBatch', 'inBtc', 'rBtc'], db.batches);
+        fill(['runClass', 'manClassSelect', 'rCls'], db.classes);
+        fill(['runBatch', 'manBatchSelect', 'rBtc'], db.batches);
     }
 
     function addNew(key, id) {
         const val = document.getElementById(id).value.trim();
         if(val) { db[key].push(val); sync(); document.getElementById(id).value = ''; updateDropdowns(); }
+    }
+
+    function manualAdd() {
+        const name = document.getElementById('manName').value.trim();
+        const roll = document.getElementById('manRoll').value.trim();
+        const phone = document.getElementById('manPhone').value.trim();
+        const cls = document.getElementById('manClassSelect').value;
+        const btc = document.getElementById('manBatchSelect').value;
+
+        if(name && roll && cls && btc) {
+            db.students.push({ id: Date.now(), name, roll, cls, btc, phone: phone || '' });
+            sync();
+            alert("স্টুডেন্ট যোগ সফল!");
+            document.getElementById('manName').value = '';
+            document.getElementById('manRoll').value = '';
+            document.getElementById('manPhone').value = '';
+            renderManager();
+        } else {
+            alert("অনুগ্রহ করে নাম, রোল এবং ক্লাস-ব্যাচ নির্বাচন করুন।");
+        }
     }
 
     function handleCSV(event) {
@@ -155,7 +192,7 @@
     function loadAttendanceList() {
         const cls = document.getElementById('runClass').value, btc = document.getElementById('runBatch').value;
         const list = db.students.filter(s => s.cls === cls && s.btc === btc).sort((a,b) => a.roll - b.roll);
-        if(!list.length) return alert("স্টুডেন্ট নেই!");
+        if(!list.length) return alert("এই ব্যাচে কোন স্টুডেন্ট নেই!");
         document.getElementById('attTitle').innerText = `${cls} | ${btc}`;
         document.getElementById('attListZone').style.display = 'block';
         curSession = {};
@@ -178,7 +215,6 @@
         curSession[id] = s;
         document.getElementById(`p-${id}`).className = 'btn-p' + (s==='P'?' active-p':'');
         document.getElementById(`a-${id}`).className = 'btn-a' + (s==='A'?' active-a':'');
-        // Show/Hide Call Button only if Absent
         const callBtn = document.getElementById(`call-${id}`);
         if(s === 'A' && callBtn.getAttribute('href') !== 'tel:') {
             callBtn.style.display = 'inline-block';
@@ -189,7 +225,7 @@
 
     function finalizeAttendance() {
         db.logs.push({ date: new Date().toLocaleDateString('en-GB'), cls: document.getElementById('runClass').value, btc: document.getElementById('runBatch').value, data: curSession });
-        sync(); alert("আজকের হাজিরা সম্পন্ন!"); location.reload();
+        sync(); alert("হাজিরা সেভ হয়েছে!"); location.reload();
     }
 
     function createReport() {
@@ -213,9 +249,9 @@
     }
 
     function renderManager() {
-        document.getElementById('stManagementList').innerHTML = db.students.map(s => `
+        document.getElementById('stManagementList').innerHTML = '<h4>৪. স্টুডেন্ট লিস্ট ও ডিলিট</h4>' + db.students.map(s => `
             <div class="st-row" style="font-size:0.8rem">
-                <span><b>${s.roll}</b>. ${s.name} (${s.phone})</span>
+                <span><b>${s.roll}</b>. ${s.name} (${s.cls})</span>
                 <button class="btn-danger" style="padding:5px 10px; border-radius:8px; border:none; width:auto;" onclick="delSt(${s.id})">মুছুন</button>
             </div>
         `).join('') || "স্টুডেন্ট নেই।";
